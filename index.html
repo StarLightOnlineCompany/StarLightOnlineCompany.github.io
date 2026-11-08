@@ -1814,10 +1814,10 @@ html, body {
   </div>
 
   <div class="ad-card" onclick="openAd()">
-    <div class="ad-card-icon">📢</div>
+    <div class="ad-card-icon">🚚</div>
     <div class="ad-card-body">
-      <div class="ad-card-title">Тут может быть твоя реклама!</div>
-      <div class="ad-card-sub">Пиши — @StarLightAd</div>
+      <div class="ad-card-title">Самая хорошая доставка</div>
+      <div class="ad-card-sub">Быстро, вкусно, недорого — прямо к двери</div>
     </div>
   </div>
 
@@ -1947,6 +1947,14 @@ html, body {
 
     <div class="section-label">🏆 Достижения</div>
     <div class="achievements-grid" id="achievementsGrid"></div>
+
+    <div class="ad-card" style="margin-top:16px" onclick="openAd()">
+      <div class="ad-card-icon">🚚</div>
+      <div class="ad-card-body">
+        <div class="ad-card-title">Самая хорошая доставка</div>
+        <div class="ad-card-sub">Быстро, вкусно, недорого — прямо к двери</div>
+      </div>
+    </div>
   </div>
   <div class="nav-bar">
     <button class="nav-btn" onclick="switchScreen('menu')">
@@ -2141,10 +2149,10 @@ const save = {
   subscribedChannel: false
 };
 function loadSave() {
-  try { const s = JSON.parse(localStorage.getItem('starlight_v12')); if (s) Object.assign(save, s); } catch(e) {}
+  try { const s = JSON.parse(localStorage.getItem('starlight_v13')); if (s) Object.assign(save, s); } catch(e) {}
 }
 function writeSave() {
-  try { localStorage.setItem('starlight_v12', JSON.stringify(save)); } catch(e) {}
+  try { localStorage.setItem('starlight_v13', JSON.stringify(save)); } catch(e) {}
 }
 loadSave();
 
@@ -2578,15 +2586,17 @@ function subscribeToChannel() {
   }, 1200);
 }
 
+// ============ РЕКЛАМА ============
 function openAd() {
+  const url = 'https://example.com';
   const tg = window.Telegram && window.Telegram.WebApp;
-  if (tg && tg.openTelegramLink) {
-    try { tg.openTelegramLink('https://t.me/StarLightAd'); }
-    catch(e) { window.open('https://t.me/StarLightAd', '_blank'); }
+  if (tg && tg.openLink) {
+    try { tg.openLink(url); }
+    catch(e) { window.open(url, '_blank'); }
   } else {
-    window.open('https://t.me/StarLightAd', '_blank');
+    window.open(url, '_blank');
   }
-  showToast('📢 @StarLightAd — тут может быть твоя реклама!');
+  showToast('🚚 Переход на сайт доставки...');
 }
 
 // ============ TELEGRAM ============
@@ -3041,7 +3051,7 @@ function sendMessage() {
     let reply;
     const l = text.toLowerCase();
     if (l.includes('привет')) reply = 'Привет, ' + getDisplayName() + '! 👋 Чем помочь?';
-    else if (l.includes('реклам')) reply = '📢 @StarLightAd — тут может быть твоя реклама!';
+    else if (l.includes('реклам')) reply = '📢 В StarLight реклама доставки — перейди по баннеру!';
     else if (l.includes('канал') || l.includes('подпис')) reply = '📢 Подпишись на @StarLightChanne и получи 50 ⭐!';
     else if (l.includes('музык')) reply = '🎵 Настройки → Музыка.';
     else if (l.includes('игр')) reply = '🎮 Жми «ИГРАТЬ»! Лови звёзды ⭐';
@@ -3337,7 +3347,7 @@ function exitToMenu() {
 }
 function resetProgress() {
   if (confirm('Сбросить весь прогресс?')) {
-    localStorage.removeItem('starlight_v12');
+    localStorage.removeItem('starlight_v13');
     location.reload();
   }
 }
