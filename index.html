@@ -1,382 +1,314 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StarLight x Orbit — Поиск</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
-
-        :root {
-            --bg: #08080c; 
-            --glass: rgba(255, 255, 255, 0.05); 
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --primary: #8b5cf6; 
-            --primary-glow: rgba(139, 92, 246, 0.6);
-            --secondary: #10b981; 
-            --text: #ffffff;
-            --text-muted: #9ca3af;
-            --gray-logo: #666;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Manrope', sans-serif; -webkit-tap-highlight-color: transparent; }
-        
-        body { 
-            background-color: var(--bg); color: var(--text); padding-top: 10px; padding-bottom: 40px;
-            overflow-x: hidden; background-image: radial-gradient(circle at top right, rgba(139, 92, 246, 0.15), transparent 40%), radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.1), transparent 40%);
-            background-attachment: fixed;
-            display: flex; flex-direction: column; min-height: 100vh;
-        }
-
-        /* --- ШАПКА --- */
-        .header { text-align: center; padding: 15px 0 25px 0; position: relative; }
-        .logo-text {
-            font-size: 28px; font-weight: 800; letter-spacing: -0.5px; 
-            color: #fff; text-transform: uppercase; cursor: pointer;
-            display: flex; justify-content: center; align-items: center; gap: 8px;
-        }
-        .logo-text .main { color: #fff; text-shadow: 0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.6); }
-        .logo-text .main span { color: var(--primary); }
-        
-        /* Кнопка Orbit */
-        .logo-text .x-orbit { 
-            color: var(--gray-logo); font-size: 20px; font-weight: 600; 
-            text-transform: none; letter-spacing: 0; cursor: pointer;
-            transition: color 0.2s, text-shadow 0.2s;
-        }
-        .logo-text .x-orbit:hover, .logo-text .x-orbit:active { 
-            color: #aaa; 
-            text-shadow: 0 0 10px rgba(255,255,255,0.2);
-        }
-
-        /* Всплывашка "Скоро" */
-        .soon-popup {
-            position: absolute;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%) translateY(0);
-            background: rgba(30, 30, 40, 0.95);
-            border: 1px solid var(--primary);
-            box-shadow: 0 0 20px var(--primary-glow);
-            color: #fff;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 14px;
-            pointer-events: none;
-            opacity: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        /* Анимация полета "Скоро" */
-        .soon-popup.active {
-            animation: flyUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes flyUp {
-            0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.8); }
-            20% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-            80% { opacity: 1; transform: translateX(-50%) translateY(-30px) scale(1); }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-60px) scale(0.9); }
-        }
-
-        /* --- ЭКРАНЫ --- */
-        .screen { display: none; padding: 0 20px; animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); flex: 1; }
-        .screen.active { display: block; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* --- ГЛАВНАЯ --- */
-        .portal-grid { display: flex; flex-direction: column; gap: 15px; max-width: 500px; margin: 0 auto; }
-        .portal-btn {
-            display: flex; align-items: center; gap: 20px; background: var(--glass); border: 1px solid var(--glass-border);
-            padding: 25px 20px; border-radius: 24px; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(10px); text-decoration: none; color: #fff;
-        }
-        .portal-btn:active { transform: scale(0.97); background: rgba(255,255,255,0.08); }
-        .portal-icon { width: 50px; height: 50px; border-radius: 16px; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; }
-        .portal-icon svg { width: 28px; height: 28px; fill: var(--primary); }
-        .portal-info h3 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-        .portal-info p { font-size: 13px; color: var(--text-muted); font-weight: 500; }
-        
-        .portal-btn.disabled { opacity: 0.6; cursor: not-allowed; background: rgba(255, 255, 255, 0.02); }
-        .portal-btn.disabled .portal-icon { background: rgba(255, 255, 255, 0.05); }
-        .portal-btn.disabled .portal-icon svg { fill: var(--text-muted); }
-        .badge-soon { background: var(--primary); color: #fff; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; margin-left: auto; box-shadow: 0 0 10px var(--primary-glow); }
-
-        /* --- ПОИСКОВИК --- */
-        .search-home { display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
-        .big-search-box {
-            width: 100%; max-width: 600px; background: rgba(30, 30, 40, 0.8); border-radius: 20px;
-            display: flex; align-items: center; padding: 15px 20px; border: 2px solid var(--glass-border); transition: border-color 0.3s, box-shadow 0.3s;
-        }
-        .big-search-box:focus-within { border-color: var(--primary); box-shadow: 0 0 20px var(--primary-glow); }
-        .big-search-box input { background: transparent; border: none; outline: none; color: #fff; font-size: 18px; font-weight: 600; width: 100%; }
-        .big-search-box svg { width: 24px; height: 24px; fill: var(--text-muted); margin-right: 15px; }
-
-        /* --- РЕЗУЛЬТАТЫ --- */
-        .search-page-top {
-            position: sticky; top: 0; z-index: 50; background: rgba(8, 8, 12, 0.95); backdrop-filter: blur(20px);
-            padding: 15px 20px; margin: 0 -20px 20px -20px; border-bottom: 1px solid var(--glass-border);
-            display: flex; align-items: center; gap: 15px;
-        }
-        .back-btn { background: var(--glass); border: 1px solid var(--glass-border); color: #fff; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
-        .back-btn svg { width: 20px; height: 20px; fill: #fff; }
-        .search-page-top .big-search-box { padding: 10px 15px; border-radius: 12px; background: rgba(255,255,255,0.05); }
-        .search-page-top .big-search-box input { font-size: 15px; }
-
-        .result-item {
-            background: var(--glass); padding: 20px; border-radius: 16px;
-            border: 1px solid var(--glass-border); margin-bottom: 15px;
-            cursor: pointer; text-decoration: none; display: block; color: var(--text);
-        }
-        .result-item:active { background: rgba(255,255,255,0.08); }
-        .result-item .url { color: var(--secondary); font-size: 13px; margin-bottom: 8px; font-weight: 600; }
-        .result-item h3 { color: var(--primary); font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-        .result-item p { color: var(--text-muted); font-size: 14px; line-height: 1.5; font-weight: 500; }
-        
-        .loader { text-align: center; color: var(--text-muted); padding: 30px 0; font-weight: 600; }
-        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.1); border-radius: 50%; border-top-color: var(--primary); animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* --- МАГАЗИН --- */
-        .shop-top { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
-        .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .product-card {
-            background: var(--glass); border-radius: 24px; padding: 20px 15px;
-            border: 1px solid var(--glass-border); display: flex; flex-direction: column;
-            align-items: center; text-align: center; backdrop-filter: blur(10px); transition: all 0.2s;
-        }
-        .product-card:active { transform: scale(0.96); }
-        .product-img { width: 70px; height: 70px; object-fit: contain; margin-bottom: 12px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); }
-        .product-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; line-height: 1.2; }
-        .product-price { font-size: 18px; font-weight: 800; color: var(--primary); margin-bottom: 15px; }
-        .btn-buy { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 14px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 15px var(--primary-glow); cursor: pointer; }
-        .btn-buy:active { background: #7c3aed; }
-        .section-title { font-size: 20px; font-weight: 800; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; letter-spacing: -0.5px; }
-        .section-title::before { content: ''; display: block; width: 4px; height: 20px; background: var(--primary); border-radius: 4px; box-shadow: 0 0 10px var(--primary-glow); }
-
-        /* --- БАННЕР --- */
-        .ad-banner {
-            margin: 30px 20px 20px 20px; padding: 18px 20px; background: var(--glass);
-            border: 1px dashed var(--glass-border); border-radius: 16px; display: flex;
-            flex-direction: column; gap: 5px; backdrop-filter: blur(10px);
-        }
-        .ad-header { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        .ad-header svg { width: 16px; height: 16px; fill: var(--secondary); }
-        .ad-text { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.4; }
-        .ad-text span { color: var(--secondary); }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f8f9fc">
+<title>Major</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+:root{--bg:#f8f9fc;--card:#fff;--text:#0e0f15;--muted:#70758a;--chip:#eceef6;--line:rgba(14,15,21,.06);--nav:rgba(255,255,255,.7);--ink:#0e0f15;--onink:#fff;
+--sh:0 1px 2px rgba(24,24,80,.05),0 8px 18px rgba(24,24,80,.06),0 22px 44px rgba(24,24,80,.07);--r:26px;color-scheme:light;
+--ease:cubic-bezier(.22,1,.36,1);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d0e14;--card:#181a23;--text:#f4f5fa;--muted:#9296a8;--chip:#242634;--line:rgba(255,255,255,.07);--nav:rgba(28,30,41,.7);--ink:#f4f5fa;--onink:#0e0f15;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0d0e14;--card:#181a23;--text:#f4f5fa;--muted:#9296a8;--chip:#242634;--line:rgba(255,255,255,.07);--nav:rgba(28,30,41,.7);--ink:#f4f5fa;--onink:#0e0f15;color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;scrollbar-width:none}
+::-webkit-scrollbar{display:none}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--text);font:500 15px/1.4 Manrope,-apple-system,"SF Pro Text","Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button,input{font:inherit;color:inherit;border:0;background:none;outline:0}
+button{cursor:pointer;transition:transform .2s var(--ease),background .25s,opacity .2s}
+button:active,.press:active{transform:scale(.95)}
+:focus-visible{outline:2px solid #6366f1;outline-offset:2px}
+.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+h1{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+#app{width:100%;max-width:420px;min-height:100vh;padding:20px 16px 128px;position:relative;overflow-x:hidden}
+.screen{display:none}.screen.on{display:block;animation:in .45s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(12px) scale(.99)}}
+/* splash */
+#splash{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px;text-align:center;color:#fff;background:radial-gradient(120% 90% at 20% 0%,#a855f7 0,transparent 60%),radial-gradient(100% 80% at 100% 100%,#38bdf8 0,transparent 55%),#4f46e5;transition:opacity .6s var(--ease),transform .6s var(--ease),visibility .6s;overflow:hidden}
+#splash.out{opacity:0;visibility:hidden;transform:scale(1.06)}
+#splash::before,#splash::after{content:"";position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.14);filter:blur(50px);animation:drift 9s ease-in-out infinite alternate}
+#splash::before{top:-80px;right:-60px}#splash::after{bottom:-100px;left:-80px;animation-delay:-4s;background:rgba(244,114,182,.35)}
+@keyframes drift{to{transform:translate(-40px,40px)}}
+.duck{width:150px;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 22px 24px rgba(20,10,80,.35));position:relative;z-index:1}
+@keyframes float{50%{transform:translateY(-14px) rotate(-4deg)}}
+.eye{transform-origin:center;transform-box:fill-box;animation:blink 4s infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+#splash h1,#splash p,#splash button{position:relative;z-index:1}
+#splash p{opacity:.85;max-width:260px}
+.go{margin-top:10px;background:#fff;color:#4338ca;font-weight:800;font-size:17px;padding:17px 60px;border-radius:32px;box-shadow:0 14px 34px rgba(20,10,80,.3);overflow:hidden;position:relative}
+.go::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(124,58,237,.18) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.8s infinite}
+@keyframes shine{to{transform:translateX(100%)}}
+/* head */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.pill{display:flex;align-items:center;gap:6px;background:var(--card);box-shadow:var(--sh);padding:9px 13px 9px 10px;border-radius:20px;font-weight:700;font-size:13px;white-space:nowrap}
+.pill .i{width:18px;height:18px}
+.search{display:flex;align-items:center;gap:10px;background:var(--card);box-shadow:var(--sh);border-radius:20px;padding:0 14px;height:48px;margin-bottom:14px;color:var(--muted)}
+.search input{flex:1;color:var(--text);min-width:0}
+.cats{display:flex;gap:8px;overflow-x:auto;margin:0 -16px 16px;padding:2px 16px}
+.chip{background:var(--chip);padding:10px 18px;border-radius:20px;font-weight:700;font-size:14px;white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--onink);box-shadow:0 8px 18px rgba(14,15,21,.25)}
+/* banner */
+.banner{position:relative;display:block;width:100%;text-align:left;color:#fff;padding:24px 22px;border-radius:30px;margin-bottom:20px;overflow:hidden;background:linear-gradient(135deg,#a855f7,#6366f1 70%);box-shadow:0 18px 40px rgba(99,102,241,.4),inset 0 1px 0 rgba(255,255,255,.35)}
+.banner::before{content:"";position:absolute;width:220px;height:220px;right:-60px;top:-80px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.35),transparent 65%)}
+.banner .ring{position:absolute;right:18px;bottom:-30px;width:110px;height:110px;border-radius:50%;border:18px solid rgba(255,255,255,.14)}
+.banner b{display:block;font-size:20px;font-weight:800;line-height:1.2;max-width:230px;margin-bottom:8px;letter-spacing:-.02em}
+.banner span{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);padding:6px 12px;border-radius:14px;font-size:13px;font-weight:700}
+.banner span .i{width:15px;height:15px}
+/* cards */
+.card{display:flex;align-items:center;gap:14px;background:var(--card);padding:14px;border-radius:var(--r);box-shadow:var(--sh);margin-bottom:12px;cursor:pointer;transition:transform .2s var(--ease);animation:rise .55s var(--ease) both;animation-delay:calc(var(--n)*70ms)}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}}
+.ico{width:58px;height:58px;border-radius:19px;display:grid;place-items:center;flex:none;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -4px 10px rgba(0,0,0,.14),0 8px 16px var(--gs,rgba(0,0,0,.15))}
+.ico .i{width:28px;height:28px}
+.g1{background:linear-gradient(140deg,#a855f7,#6366f1);--gs:rgba(99,102,241,.4)}.g2{background:linear-gradient(140deg,#38bdf8,#2563eb);--gs:rgba(37,99,235,.4)}.g3{background:linear-gradient(140deg,#f472b6,#db2777);--gs:rgba(219,39,119,.4)}.g4{background:linear-gradient(140deg,#4ade80,#16a34a);--gs:rgba(22,163,74,.4)}
+.t{flex:1;min-width:0}.t b{display:flex;align-items:center;gap:5px;font-size:16px;font-weight:800;letter-spacing:-.01em}
+.t small{display:block;color:var(--muted);font-size:13px;font-weight:500;margin:1px 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t em{font-style:normal;font-size:12px;color:var(--muted);font-weight:600}
+.vb{width:17px;height:17px;flex:none}
+.open{background:var(--ink);color:var(--onink);padding:10px 17px;border-radius:18px;font-weight:700;font-size:14px}
+.empty{text-align:center;color:var(--muted);padding:36px 12px}
+.sk{height:86px;border-radius:var(--r);margin-bottom:12px;background:linear-gradient(100deg,var(--card) 30%,var(--chip) 50%,var(--card) 70%) 0 0/300% 100%;animation:sk 1.2s linear infinite;box-shadow:var(--sh)}
+@keyframes sk{to{background-position:-300% 0}}
+/* verification */
+.seg{position:relative;display:flex;background:var(--chip);border-radius:22px;padding:4px;margin:16px 0 22px}
+.seg i{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/3);background:var(--card);border-radius:18px;box-shadow:var(--sh);transform:translateX(calc(var(--k,0)*100%));transition:transform .4s var(--ease)}
+.seg button{position:relative;flex:1;padding:11px 0;font-weight:700;font-size:14px;color:var(--muted)}
+.seg button.on{color:var(--text)}
+.stage{position:relative;display:grid;place-items:center;margin-bottom:22px}
+.stage::before{content:"";position:absolute;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(168,85,247,.28),transparent 68%)}
+.phone{position:relative;width:206px;border:8px solid #15161e;border-radius:38px;background:var(--card);padding:12px 12px 14px;box-shadow:0 0 0 2px #2b2d3a,0 28px 50px rgba(30,20,90,.3);transform:rotate(-3deg);transition:transform .5s var(--ease)}
+.phone .nt{width:62px;height:7px;background:#15161e;border-radius:5px;margin:0 auto 12px}
+.ch{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.ch .ico{width:40px;height:40px;border-radius:50%;box-shadow:none}.ch .ico .i{width:20px;height:20px}
+.ch b{font-size:13px;display:flex;gap:4px;align-items:center;line-height:1.1}.ch small{font-size:11px;color:var(--muted)}
+.ln{height:9px;border-radius:5px;background:var(--chip);margin-bottom:7px}
+.imgb{height:62px;border-radius:14px;background:linear-gradient(135deg,#38bdf8,#a855f7 60%,#f472b6);margin:10px 0 9px}
+.pb{display:flex;gap:6px}.pb i{flex:1;font-style:normal;text-align:center;font-size:11px;font-weight:800;color:#fff;padding:8px 0;border-radius:13px;background:linear-gradient(135deg,#a855f7,#6366f1)}.pb i+i{background:var(--chip);color:var(--text)}
+.vt{text-align:center;margin-bottom:20px}.vt h1{font-size:25px;margin-bottom:8px}.vt p{color:var(--muted);font-size:14px;max-width:300px;margin:0 auto}
+.plan{position:relative;padding:3px;border-radius:30px;background:conic-gradient(from var(--a),#a855f7,#38bdf8,#4ade80,#f472b6,#a855f7);animation:spin 5s linear infinite;box-shadow:0 18px 40px rgba(168,85,247,.28)}
+@keyframes spin{to{--a:360deg}}
+.plan>div{background:var(--card);border-radius:27px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.price small{color:var(--muted);font-weight:700}.price b{display:flex;align-items:baseline;gap:8px;font-size:30px;font-weight:800;letter-spacing:-.03em}
+.price s{font-size:15px;color:var(--muted);font-weight:600}
+.off{position:absolute;top:-11px;right:22px;background:#16a34a;color:#fff;font-size:12px;font-weight:800;padding:4px 11px;border-radius:12px;box-shadow:0 6px 14px rgba(22,163,74,.4)}
+.buy{background:linear-gradient(135deg,#a855f7,#6366f1);color:#fff;padding:14px 22px;border-radius:21px;font-weight:800;box-shadow:0 10px 22px rgba(99,102,241,.45)}
+/* profile */
+.prof{display:flex;flex-direction:column;align-items:center;text-align:center;margin:12px 0 24px}
+.avw{position:relative;margin-bottom:16px}
+.avw::before{content:"";position:absolute;inset:-5px;border-radius:50%;background:conic-gradient(from var(--a),#a855f7,#38bdf8,#f472b6,#a855f7);animation:spin 6s linear infinite}
+.av{position:relative;width:108px;height:108px;border-radius:50%;border:4px solid var(--bg);background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;display:grid;place-items:center;font-size:46px;font-weight:800;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+.prof p{color:var(--muted);margin-top:3px;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stats div{background:var(--card);box-shadow:var(--sh);border-radius:22px;padding:14px 6px;text-align:center}
+.stats b{display:block;font-size:20px;font-weight:800}.stats small{color:var(--muted);font-size:12px;font-weight:600}
+.act{width:100%;text-align:left;display:flex;align-items:center;gap:14px;background:var(--card);padding:14px;border-radius:var(--r);box-shadow:var(--sh);margin-bottom:12px;font-weight:700;font-size:16px}
+.act .ico{width:46px;height:46px;border-radius:15px}.act .ico .i{width:22px;height:22px}.act>.i:last-child{margin-left:auto;color:var(--muted);width:18px;height:18px}
+/* wallet */
+.wc{position:relative;overflow:hidden;color:#fff;border-radius:32px;padding:22px;margin:14px 0 18px;background:linear-gradient(145deg,#0ea5e9,#2563eb 55%,#4f46e5);box-shadow:0 22px 44px rgba(37,99,235,.42),inset 0 1px 0 rgba(255,255,255,.4)}
+.wc::before{content:"";position:absolute;width:260px;height:260px;right:-90px;top:-110px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.35),transparent 65%)}
+.wc>*{position:relative}
+.wh{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px}
+.wh span{display:flex;align-items:center;gap:8px}.wh span .i{width:26px;height:26px;padding:5px;border-radius:50%;background:rgba(255,255,255,.22)}
+.addr{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);padding:7px 11px;border-radius:14px;font-size:12px;font-weight:700;color:#fff}.addr .i{width:14px;height:14px}
+.bal{font-size:40px;font-weight:800;letter-spacing:-.04em;margin:20px 0 4px;line-height:1}.bal small{font-size:18px;font-weight:700;opacity:.8;margin-left:7px;letter-spacing:0}
+.fiat{display:flex;gap:8px;align-items:center;font-weight:600;font-size:14px}
+.up{background:rgba(74,222,128,.3);padding:2px 8px;border-radius:10px;font-size:12px;font-weight:800}
+.spark{display:block;width:100%;height:56px;margin-top:14px}.spark path{stroke-dasharray:420;stroke-dashoffset:420;animation:draw 1.6s var(--ease) .25s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.wa{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}.wa button{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;font-weight:700}.wa .ico{width:56px;height:56px;border-radius:50%}
+.sec{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:17px;margin:20px 2px 12px}.sec small{color:var(--muted);font-weight:600;font-size:13px}
+.row{display:flex;align-items:center;gap:13px;background:var(--card);padding:13px 14px;border-radius:22px;box-shadow:var(--sh);margin-bottom:10px;width:100%;text-align:left}
+.row .ico{width:44px;height:44px;border-radius:50%;font-weight:800;font-size:18px}.row .ico .i{width:22px;height:22px}
+.row .t b{font-size:15px}.row .t small{margin:0}
+.amt{text-align:right}.amt b{display:block;font-weight:800;font-size:15px}.amt small{color:var(--muted);font-size:12px;font-weight:600}.pos{color:#16a34a}
+.sheet{position:fixed;inset:0;z-index:80;background:rgba(10,10,20,.45);backdrop-filter:blur(4px);opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s;display:flex;align-items:flex-end;justify-content:center}.sheet.on{opacity:1;visibility:visible}
+.sheet>div{width:100%;max-width:420px;background:var(--card);border-radius:34px 34px 0 0;padding:14px 22px calc(26px + env(safe-area-inset-bottom,0px));text-align:center;transform:translateY(100%);transition:transform .5s var(--ease)}.sheet.on>div{transform:none}
+.grab{width:42px;height:5px;border-radius:3px;background:var(--chip);margin:0 auto 18px}.sheet h2{font-size:22px;font-weight:800;letter-spacing:-.02em}.sheet p{color:var(--muted);font-size:13px;margin-top:6px}
+#qr{width:208px;height:208px;margin:18px auto 14px;padding:14px;background:#fff;border-radius:26px;box-shadow:var(--sh);display:grid;grid-template-columns:repeat(25,1fr);align-content:center}#qr i{aspect-ratio:1;background:#0e0f15;border-radius:1px}#qr i.z{background:transparent}
+.sheet code{display:block;word-break:break-all;color:var(--muted);font-size:13px;font-weight:600;margin:0 6px}
+.full{display:block;width:100%;margin-top:16px;padding:16px;border-radius:22px;font-weight:800;background:linear-gradient(135deg,#38bdf8,#2563eb);color:#fff;box-shadow:0 12px 26px rgba(37,99,235,.4)}
+/* nav */
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(396px,calc(100% - 24px));padding:6px;border-radius:34px;background:var(--nav);backdrop-filter:blur(24px) saturate(190%);-webkit-backdrop-filter:blur(24px) saturate(190%);box-shadow:0 14px 40px rgba(24,24,80,.2),inset 0 0 0 1px rgba(255,255,255,.45);z-index:20}
+nav .in{position:relative;display:flex}
+nav .ind{position:absolute;top:0;bottom:0;left:0;width:25%;border-radius:28px;background:var(--ink);transform:translateX(calc(var(--k,2)*100%));transition:transform .5s var(--ease);box-shadow:0 8px 18px rgba(14,15,21,.3)}
+nav button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 8px;font-size:11px;font-weight:700;color:var(--muted);transition:color .3s}
+nav button.on{color:var(--onink)}
+nav .i{width:22px;height:22px}
+.mini{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#f472b6,#a855f7);font-size:11px;font-weight:800;color:#fff;display:grid;place-items:center;overflow:hidden}.mini img{width:100%;height:100%;object-fit:cover}
+#toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-140%);background:var(--ink);color:var(--onink);padding:12px 18px;border-radius:20px;font-weight:700;font-size:14px;z-index:90;box-shadow:0 14px 34px rgba(0,0,0,.28);transition:transform .5s var(--ease);max-width:calc(100% - 32px);text-align:center}
+#toast.on{transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+<symbol id="i-gem" viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M9 3l3 6 3-6M12 21L9 9M12 21l3-12"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol>
+<symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12h14v9H5zM12 8v13M12 8c-1-4-6-4-5-1 .5 1.5 3 1 5 1zM12 8c1-4 6-4 5-1-.5 1.5-3 1-5 1z"/></symbol>
+<symbol id="i-pad" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="5.5"/><path d="M7 10.5v4M5 12.5h4M16 11.5v.01M18.5 13.5v.01"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="i-bag" viewBox="0 0 24 24"><path d="M5.5 8h13l1 12h-15z"/><path d="M9 8a3 3 0 016 0"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="4"/><path d="M12 4v4M9 13v1M15 13v1"/></symbol>
+<symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4l11 5V5zM14 8c3 .5 5 2 5 4s-2 3.500-5 4M6 15l1 5h3"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="3"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-id" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3.5"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M14.5 10h3.5M14.5 13.5h2.5"/></symbol><symbol id="i-ton" viewBox="0 0 24 24"><path d="M5 6.5h14L12 19z"/><path d="M12 6.5V19"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol><symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></symbol><symbol id="i-card" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="3.5"/><path d="M2.5 10h19M7 15h3"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></symbol><symbol id="i-badge" viewBox="0 0 24 24"><path d="M12 1.800l2.600 1.900 3.200-.1 1 3 2.600 1.900-1 3 1 3-2.600 1.900-1 3-3.200-.1L12 22.200l-2.600-1.900-3.200.1-1-3L2.600 15.500l1-3-1-3 2.600-1.900 1-3 3.200.1z" fill="#2f8cff" stroke="none"/><path d="M8.500 12l2.500 2.500 4.500-5" stroke="#fff" stroke-width="2.200"/></symbol>
+</svg>
 
-    <!-- Шапка с логотипом и попапом -->
-    <div class="header">
-        <!-- Плашка "Скоро" -->
-        <div class="soon-popup" id="soon-popup">Скоро</div>
+<div id="splash">
+  <svg class="duck" viewBox="0 0 160 150" aria-hidden="true">
+    <ellipse cx="80" cy="132" rx="46" ry="9" fill="rgba(20,10,80,.25)"/>
+    <path d="M26 92c0-30 22-52 52-52s50 22 50 52c0 22-20 38-50 38S26 114 26 92z" fill="#ffd84d"/>
+    <path d="M44 100c8 14 22 20 38 20 22 0 38-10 44-26-10 12-26 16-40 14-16-2-30-10-42-8z" fill="#ffb91f"/>
+    <circle cx="82" cy="42" r="30" fill="#ffe15e"/>
+    <ellipse class="eye" cx="94" cy="36" rx="5" ry="6.500" fill="#1a1230"/><circle cx="96" cy="34" r="1.800" fill="#fff"/>
+    <path d="M104 44c14-2 24 2 26 8-6 8-20 8-28 2z" fill="#ff8a3d"/>
+    <path d="M52 92c10-14 30-14 40 2-10 10-30 10-40-2z" fill="#ffb91f"/>
+    <circle cx="86" cy="50" r="5" fill="#ff9db4" opacity=".7"/>
+  </svg>
+  <h1>Добро пожаловать в Major!</h1>
+  <p>Каталог проектов и крипто-экосистема в одном месте</p>
+  <button class="go" id="start">Начать</button>
+</div>
 
-        <div class="logo-text" onclick="switchTab('home')">
-            <div class="main">Star<span>Light</span></div>
-            <!-- Кнопка Orbit с обработчиком клика и наведения -->
-            <div class="x-orbit" id="orbit-btn" onclick="showSoon(event)" onmouseover="showSoon(event)">x Orbit</div>
-        </div>
-    </div>
+<div id="toast" role="status" aria-live="polite"></div>
 
-    <!-- ЭКРАН 1: ГЛАВНАЯ -->
-    <div id="screen-home" class="screen active">
-        <div class="portal-grid">
-            <div class="portal-btn" onclick="switchTab('search-home')">
-                <div class="portal-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
-                <div class="portal-info"><h3>Интернет</h3><p>Глобальный поиск по Википедии и магазину</p></div>
-            </div>
-            <div class="portal-btn" onclick="switchTab('shop')">
-                <div class="portal-icon"><svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg></div>
-                <div class="portal-info"><h3>Магазин</h3><p>Покупка валюты и подписок</p></div>
-            </div>
-            <div class="portal-btn disabled">
-                <div class="portal-icon"><svg viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg></div>
-                <div class="portal-info"><h3>Игра</h3><p>Мини-игры и квесты</p></div>
-                <div class="badge-soon">Скоро</div>
-            </div>
-        </div>
-    </div>
+<div id="app">
+  <section class="screen" id="s-verify">
+    <h1>Верификация</h1>
+    <div class="seg" id="seg"><i></i><button class="on">Канал</button><button>Бот</button><button>Личный</button></div>
+    <div class="stage"><div class="phone" id="phone">
+      <div class="nt"></div>
+      <div class="ch"><div class="ico g2" id="vico"></div><div><b><span id="vname">Just News</span><svg class="i vb"><use href="#i-badge"/></svg></b><small id="vsub">3.8M подписчиков</small></div></div>
+      <div class="ln" style="width:92%"></div><div class="ln" style="width:70%"></div>
+      <div class="imgb"></div>
+      <div class="pb"><i id="vbtn">Подписаться</i><i>Ещё</i></div>
+    </div></div>
+    <div class="vt"><h1 id="vh">Подтвердите проект</h1><p id="vp">Получите галочку в каталоге Major и больше доверия от аудитории.</p></div>
+    <div class="plan"><span class="off">−50%</span><div><div class="price"><small>На 1 год</small><b>1.000 ₽<s><del>2.000 ₽</del></s></b></div><button class="buy" data-msg="Оплата скоро станет доступна">Подтвердить</button></div></div>
+  </section>
 
-    <!-- ЭКРАН 2: СТАРТ ПОИСКА -->
-    <div id="screen-search-home" class="screen">
-        <div class="search-home">
-            <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 25px; text-align: center; width: 100%;">Глобальный поиск</h2>
-            <div class="big-search-box">
-                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                <input type="text" id="start-search-input" placeholder="Введите запрос (например, Телефон)..." onkeypress="startSearch(event)">
-            </div>
-        </div>
-    </div>
+  <section class="screen" id="s-ton">
+    <div class="top"><h1>Кошелёк</h1><span class="pill"><i style="width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.2)"></i>Mainnet</span></div>
+    <div class="wc"><div class="wh"><span><svg class="i"><use href="#i-ton"/></svg>Major Wallet</span><button class="addr" data-w="copy">UQBm…x9Kd<svg class="i"><use href="#i-copy"/></svg></button></div><div class="bal">128,45<small>TON</small></div><div class="fiat">≈ 24 405 ₽ <span class="up">+2,4%</span></div><svg class="spark" viewBox="0 0 300 56" preserveAspectRatio="none"><path d="M0 44C20 40 30 48 50 38S80 30 100 34S130 16 155 22S190 30 210 18S250 8 300 6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg></div>
+    <div class="wa"><button data-w="send"><div class="ico g1"><svg class="i"><use href="#i-up"/></svg></div>Отправить</button><button data-w="recv"><div class="ico g4"><svg class="i"><use href="#i-down"/></svg></div>Получить</button><button data-w="swap"><div class="ico g3"><svg class="i"><use href="#i-swap"/></svg></div>Обмен</button><button data-w="buy"><div class="ico g2"><svg class="i"><use href="#i-card"/></svg></div>Купить</button></div>
+<button class="row" data-msg="Резервное копирование скоро появится"><div class="ico g1"><svg class="i"><use href="#i-lock"/></svg></div><div class="t"><b>Резервная копия</b><small>Сохраните секретную фразу, ключи только у вас</small></div><svg class="i" style="width:18px;height:18px;color:var(--muted)"><use href="#i-chev"/></svg></button>
+<div class="sec">Активы<small>3</small></div>
+<div class="row"><div class="ico g2"><svg class="i"><use href="#i-ton"/></svg></div><div class="t"><b>Toncoin</b><small>190,00 ₽</small></div><div class="amt"><b>128,45</b><small>≈ 24 405 ₽</small></div></div>
+<div class="row"><div class="ico g4">₮</div><div class="t"><b>Tether</b><small>91,00 ₽</small></div><div class="amt"><b>250,00</b><small>≈ 22 750 ₽</small></div></div>
+<div class="row"><div class="ico g1">M</div><div class="t"><b>MAJOR</b><small>0,25 ₽</small></div><div class="amt"><b>12 480</b><small>≈ 3 120 ₽</small></div></div>
+<div class="sec">История<small>Ноябрь</small></div>
+<div class="row"><div class="ico g4"><svg class="i"><use href="#i-down"/></svg></div><div class="t"><b>Получено</b><small>Сегодня, 14:32</small></div><div class="amt"><b class="pos">+25,00 TON</b><small>≈ 4 750 ₽</small></div></div>
+<div class="row"><div class="ico g1">M</div><div class="t"><b>Награда Major</b><small>Вчера, 19:08</small></div><div class="amt"><b class="pos">+1 200 MAJOR</b><small>≈ 300 ₽</small></div></div>
+<div class="row"><div class="ico g3"><svg class="i"><use href="#i-up"/></svg></div><div class="t"><b>Отправлено</b><small>9 нояб., 11:45</small></div><div class="amt"><b>−12,50 TON</b><small>≈ 2 375 ₽</small></div></div>
+<div class="sheet" id="sheet" data-w="close"><div data-w="none"><div class="grab"></div><h2>Получить TON</h2><p>Отправляйте на этот адрес только TON и токены сети TON</p><div id="qr"></div><code>UQBmK3vT7pXq2LrN9cYh4eWsJdA1ZfGo8uRiBxVn5kPtx9Kd</code><button class="full" data-w="copy">Скопировать адрес</button></div></div>
+  </section>
 
-    <!-- ЭКРАН 3: РЕЗУЛЬТАТЫ ПОИСКА -->
-    <div id="screen-search-results" class="screen" style="padding-top: 0;">
-        <div class="search-page-top">
-            <button class="back-btn" onclick="switchTab('search-home')">
-                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-            </button>
-            <div class="big-search-box">
-                <input type="text" id="page-search-input" onkeypress="updateSearch(event)">
-            </div>
-        </div>
-        <div id="search-results-list"></div>
-    </div>
+  <section class="screen on" id="s-catalog">
+    <div class="top"><h1>Каталог Major</h1><button class="pill" data-msg="Добавление своего приложения скоро появится"><svg class="i"><use href="#i-plus"/></svg>Свое приложение</button></div>
+    <label class="search"><svg class="i"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Поиск по каталогу" autocomplete="off"></label>
+    <div class="cats" id="cats"><button class="chip on" data-c="all">Все</button><button class="chip" data-c="games">Игры</button><button class="chip" data-c="fin">Финансы</button><button class="chip" data-c="util">Утилиты</button></div>
+    <button class="banner press" data-go="verify"><i class="ring"></i><b>Добавить приложение в каталог</b><span><svg class="i"><use href="#i-lock"/></svg>Требуется верификация</span></button>
+    <div id="list"></div>
+  </section>
 
-    <!-- ЭКРАН 4: МАГАЗИН -->
-    <div id="screen-shop" class="screen">
-        <div class="shop-top">
-            <button class="back-btn" onclick="switchTab('home')"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
-            <h2 class="section-title" style="margin-bottom: 0;">Магазин</h2>
-        </div>
-        <div class="product-grid" id="shop-grid"></div>
-    </div>
+  <section class="screen" id="s-profile">
+    <div class="prof"><div class="avw"><div class="av" id="avatar">Г</div></div><h1 id="pname">Гость</h1><p id="puser">Откройте через Telegram</p></div>
+    <div class="stats"><div><b>0</b><small>Проектов</small></div><div><b>0</b><small>Покупок</small></div><div><b>0</b><small>Баллов</small></div></div>
+    <button class="act" data-msg="Настройки скоро появятся"><div class="ico g1"><svg class="i"><use href="#i-sliders"/></svg></div>Настройки<svg class="i"><use href="#i-chev"/></svg></button>
+    <button class="act" data-msg="Покупок пока нет"><div class="ico g4"><svg class="i"><use href="#i-bag"/></svg></div>Покупки<svg class="i"><use href="#i-chev"/></svg></button>
+  </section>
+</div>
 
-    <!-- БАННЕР -->
-    <div class="ad-banner">
-        <div class="ad-header">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            Рекламный блок
-        </div>
-        <div class="ad-text">
-            Здесь могла быть ваша реклама, но <span>StarLight</span> против спама и навязчивых баннеров. Мы ценим ваше время.
-        </div>
-    </div>
+<nav><div class="in" id="nav"><i class="ind"></i>
+  <button data-s="verify"><svg class="i"><use href="#i-shield"/></svg>Верификация</button>
+  <button data-s="ton"><svg class="i"><use href="#i-gem"/></svg>Ton</button>
+  <button data-s="catalog" class="on"><svg class="i"><use href="#i-grid"/></svg>Каталог</button>
+  <button data-s="profile"><span id="navav"><svg class="i"><use href="#i-user"/></svg></span>Профиль</button>
+</div></nav>
 
-    <script>
-        let tg = window.Telegram.WebApp;
-        tg.expand(); 
-        tg.setHeaderColor('#08080c'); 
-        tg.setBackgroundColor('#08080c');
-        let user = tg.initDataUnsafe?.user;
+<script>
+(function(){
+'use strict';
+var tg=(window.Telegram&&window.Telegram.WebApp)||null;
+var $=function(s){return document.querySelector(s)},$$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+if(tg){try{tg.ready();tg.expand();if(tg.colorScheme)document.documentElement.dataset.theme=tg.colorScheme;if(tg.setHeaderColor)tg.setHeaderColor('bg_color')}catch(e){}}
+function tap(t){try{tg&&tg.HapticFeedback&&(t==='sel'?tg.HapticFeedback.selectionChanged():tg.HapticFeedback.impactOccurred('light'))}catch(e){}}
+var tt;function toast(m){var el=$('#toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){el.classList.remove('on')},2400)}
+function notify(m){if(tg&&tg.showAlert){try{tg.showAlert(m);return}catch(e){}}toast(m)}
+function openLink(u){if(tg&&tg.openTelegramLink){try{tg.openTelegramLink(u);return}catch(e){}}window.open(u,'_blank','noopener')}
+var ic=function(n,c){return '<svg class="i'+(c?' '+c:'')+'"><use href="#i-'+n+'"/></svg>'};
 
-        // --- ЭФФЕКТ "СКОРО" ДЛЯ ORBIT ---
-        let isAnimating = false;
-        function showSoon(e) {
-            if (e) e.stopPropagation(); // Чтобы клик по Orbit не срабатывал как клик по логотипу (на главную)
-            if (isAnimating) return;
-            isAnimating = true;
-            
-            const popup = document.getElementById('soon-popup');
-            popup.classList.remove('active');
-            
-            // Небольшая задержка, чтобы анимация сработала заново, если кликнуть повторно
-            void popup.offsetWidth; 
-            
-            popup.classList.add('active');
-            
-            setTimeout(() => {
-                isAnimating = false;
-            }, 1200); // Ждем окончания анимации
-        }
+var apps=[
+ {n:'Epic Gift',d:'Подарки и NFT в Telegram',i:'gift',g:'g3',c:'games',u:'https://t.me/EpicGiftBot',m:'182K'},
+ {n:'WELP',d:'Играйте и зарабатывайте',i:'pad',g:'g1',c:'games',u:'https://t.me/WelpBot',m:'96K'},
+ {n:'Not Spy Bot',d:'Приватность и безопасность',i:'eye',g:'g4',c:'util',u:'https://t.me/NotSpyBot',m:'41K'},
+ {n:'Ton Wallet',d:'Кошелёк для TON',i:'wallet',g:'g2',c:'fin',u:'https://t.me/wallet',m:'2.1M'}
+];
+function cardHTML(a,n){return '<div class="card press" data-link="'+a.u+'" style="--n:'+n+'" role="link" tabindex="0"><div class="ico '+a.g+'">'+ic(a.i)+'</div><div class="t"><b>'+a.n+ic('badge','vb')+'</b><small>'+a.d+'</small><em>'+a.m+' пользователей</em></div><button class="open">Открыть</button></div>'}
+var cat='all',term='';
+function render(){
+  var r=apps.filter(function(a){return(cat==='all'||a.c===cat)&&a.n.toLowerCase().indexOf(term)>-1});
+  $('#list').innerHTML=r.length?r.map(cardHTML).join(''):'<p class="empty">Ничего не найдено. Попробуйте другой запрос.</p>';
+}
+$('#list').innerHTML='<div class="sk"></div><div class="sk"></div><div class="sk"></div>';
+setTimeout(render,550);
+var ADDR='UQBmK3vT7pXq2LrN9cYh4eWsJdA1ZfGo8uRiBxVn5kPtx9Kd';
+document.body.appendChild($('#sheet'));
+function copy(){var ok=function(){toast('Адрес скопирован')},no=function(){toast('Не удалось скопировать')};try{navigator.clipboard.writeText(ADDR).then(ok,no)}catch(e){no()}}
+function qr(){var h=7,s='',o=[[0,0],[0,18],[18,0]];function f(r,c){for(var k=0;k<3;k++){var y=r-o[k][0],x=c-o[k][1];if(y>=-1&&y<=7&&x>=-1&&x<=7){if(y<0||x<0||y>6||x>6)return false;var d=Math.max(Math.abs(y-3),Math.abs(x-3));return d===3||d<=1}}return null}
+ for(var r=0;r<25;r++)for(var c=0;c<25;c++){var v=f(r,c);if(v===null){h=(h*1103515245+12345+r*31+c)&0x7fffffff;v=(h>>>16)%100<48}s+='<i'+(v?'':' class="z"')+'></i>'}$('#qr').innerHTML=s}
+function wallet(a){if(a==='none')return;if(a==='copy')return copy();if(a==='recv'){qr();$('#sheet').classList.add('on');return}if(a==='close'){$('#sheet').classList.remove('on');return}notify({send:'Отправка скоро появится',swap:'Обмен скоро появится',buy:'Покупка за рубли скоро появится'}[a]||'Скоро')}
+$('#cats').addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;$$('.chip').forEach(function(x){x.classList.remove('on')});b.classList.add('on');cat=b.dataset.c;tap('sel');render()});
+$('#q').addEventListener('input',function(e){term=e.target.value.trim().toLowerCase();render()});
 
-        // --- БАЗА МАГАЗИНА ---
-        const products = [
-            { id: 1, title: 'Fortnite 1000 V-Bucks', price: 599, img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Fortnite_V-Bucks_Logo.png/240px-Fortnite_V-Bucks_Logo.png' },
-            { id: 2, title: 'Fortnite 2800 V-Bucks', price: 1499, img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Fortnite_V-Bucks_Logo.png/240px-Fortnite_V-Bucks_Logo.png' },
-            { id: 3, title: 'Roblox 400 Robux', price: 299, img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Roblox_player_icon_black.svg/512px-Roblox_player_icon_black.svg.png', style: 'background: #fff; border-radius: 12px; padding: 8px;' },
-            { id: 4, title: 'Roblox 800 Robux', price: 549, img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Roblox_player_icon_black.svg/512px-Roblox_player_icon_black.svg.png', style: 'background: #fff; border-radius: 12px; padding: 8px;' },
-            { id: 5, title: 'Steam 500 RUB', price: 549, img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/512px-Steam_icon_logo.svg.png' },
-            { id: 6, title: 'Telegram 100 Stars', price: 149, img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/240px-Telegram_logo.svg.png', style: 'border-radius: 50%; background: #229ED9; padding: 10px;' },
-        ];
+var order=['verify','ton','catalog','profile'];
+function show(n){
+  $$('.screen').forEach(function(s){s.classList.remove('on')});$('#s-'+n).classList.add('on');
+  $$('#nav button').forEach(function(b){b.classList.toggle('on',b.dataset.s===n)});
+  $('#nav').style.setProperty('--k',order.indexOf(n));window.scrollTo(0,0);
+}
+$('#nav').style.setProperty('--k',2);
+$('#nav').addEventListener('click',function(e){var b=e.target.closest('button');if(b){tap('sel');show(b.dataset.s)}});
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-            document.getElementById('screen-' + tabId).classList.add('active');
-            if(tabId === 'home' || tabId === 'search-home') document.getElementById('start-search-input').value = '';
-        }
+document.addEventListener('click',function(e){
+  var l=e.target.closest('[data-link]');if(l){tap();openLink(l.dataset.link);return}
+  var w=e.target.closest('[data-w]');if(w){tap();wallet(w.dataset.w);return}
+  var m=e.target.closest('[data-msg]');if(m){tap();notify(m.dataset.msg);return}
+  var g=e.target.closest('[data-go]');if(g){tap();show(g.dataset.go)}
+});
+document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.link)openLink(e.target.dataset.link)});
 
-        function renderShop() {
-            document.getElementById('shop-grid').innerHTML = products.map(p => `
-                <div class="product-card">
-                    <img src="${p.img}" class="product-img" style="${p.style || ''}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/6009/6009865.png'">
-                    <div class="product-title">${p.title}</div>
-                    <div class="product-price">${p.price} ₽</div>
-                    <button class="btn-buy" onclick="buy('${p.title}')">Купить</button>
-                </div>
-            `).join('');
-        }
-        renderShop();
+var TP='Получите галочку в каталоге Major и больше доверия от аудитории.';var V=[{g:'g2',t:'Подтвердите проект',p:TP,i:'mega',n:'Just News',s:'3.8M подписчиков',b:'Подписаться'},{g:'g4',t:'Подтвердите проект',p:TP,i:'bot',n:'Just Bot',s:'1.2M пользователей',b:'Запустить'},{g:'g1',t:'Подтвердите аккаунт',p:'Галочка рядом с именем покажет, что это настоящая страница, а не подделка.',i:'id',n:'Алекс Громов',s:'Личный аккаунт, 128K подписчиков',b:'Написать'}];
+function vset(k){var v=V[k];$('#seg').style.setProperty('--k',k);$('#vico').className='ico '+v.g;$('#vico').innerHTML=ic(v.i);$('#vh').textContent=v.t;$('#vp').textContent=v.p;$('#vname').textContent=v.n;$('#vsub').textContent=v.s;$('#vbtn').textContent=v.b;$('#phone').style.transform='rotate('+(k%2?3:-3)+'deg)'}
+vset(0);
+$('#seg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var bs=$$('#seg button');$$('#seg button').forEach(function(x){x.classList.remove('on')});b.classList.add('on');tap('sel');vset(bs.indexOf(b))});
 
-        // --- ЛОГИКА ПОИСКА ---
-        function startSearch(event) {
-            if (event.key === 'Enter') {
-                const query = event.target.value.trim();
-                if(!query) return;
-                switchTab('search-results');
-                document.getElementById('page-search-input').value = query;
-                executeSearch(query);
-            }
-        }
+$('#start').addEventListener('click',function(){tap();$('#splash').classList.add('out')});
 
-        function updateSearch(event) {
-            if (event.key === 'Enter') {
-                executeSearch(event.target.value.trim());
-            }
-        }
-
-        async function executeSearch(query) {
-            const container = document.getElementById('search-results-list');
-            if (!query) { container.innerHTML = ''; return; }
-
-            const q = query.toLowerCase();
-            const localProducts = products.filter(p => p.title.toLowerCase().includes(q));
-            
-            container.innerHTML = '<div class="loader"><div class="spinner"></div><br>Ищем по всему интернету...</div>';
-
-            let html = '';
-
-            if (localProducts.length > 0) {
-                html += `<h3 style="font-size: 16px; color: var(--text-muted); margin-bottom: 15px;">Товары StarLight</h3>`;
-                html += localProducts.map(p => `
-                    <div class="result-item" onclick="switchTab('shop')">
-                        <div class="url">starlight.shop/shop/${p.id}</div>
-                        <h3>${p.title} — ${p.price} ₽</h3>
-                        <p>Купить по выгодной цене в нашем магазине. Мгновенная выдача.</p>
-                    </div>
-                `).join('');
-                html += `<div style="margin-bottom: 25px;"></div>`;
-            }
-
-            try {
-                const response = await fetch(`https://ru.wikipedia.org/w/api.php?action=query&list=search&utf8=&format=json&origin=*&srsearch=${encodeURIComponent(query)}`);
-                const data = await response.json();
-                const wikiResults = data.query.search;
-
-                if (wikiResults.length > 0) {
-                    html += `<h3 style="font-size: 16px; color: var(--text-muted); margin-bottom: 15px;">Результаты из интернета (Википедия)</h3>`;
-                    html += wikiResults.map(res => {
-                        const cleanSnippet = res.snippet.replace(/<[^>]+>/g, '') + '...';
-                        const wikiUrl = `https://ru.wikipedia.org/wiki/${encodeURIComponent(res.title)}`;
-                        return `
-                            <a href="${wikiUrl}" target="_blank" class="result-item">
-                                <div class="url">ru.wikipedia.org/wiki/${res.title}</div>
-                                <h3>${res.title}</h3>
-                                <p>${cleanSnippet}</p>
-                            </a>
-                        `;
-                    }).join('');
-                } else if (localProducts.length === 0) {
-                    html += `<div style="text-align: center; color: var(--text-muted); margin-top: 30px; font-weight: 600;">По запросу "${query}" ничего не найдено.</div>`;
-                }
-
-            } catch (error) {
-                if (localProducts.length === 0) {
-                    html += `<div style="text-align: center; color: var(--text-muted); margin-top: 30px; font-weight: 600;">Ошибка подключения к интернету. Проверьте сеть.</div>`;
-                }
-            }
-
-            container.innerHTML = html;
-        }
-
-        function buy(productName) {
-            if(!user) { alert("Для оформления заказа откройте этот магазин через Telegram-бота!"); return; }
-            let msg = encodeURIComponent(`Здравствуйте! Хочу купить: ${productName}.\nМой профиль: @${user.username || user.id}`);
-            window.open(`https://t.me/starlightad?text=${msg}`, '_blank');
-        }
-    </script>
+var u=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user;
+if(u){
+  var name=[u.first_name,u.last_name].filter(Boolean).join(' ')||'Пользователь';
+  var L=(u.first_name||name).charAt(0).toUpperCase();
+  $('#pname').textContent=name;$('#puser').textContent=u.username?'@'+u.username:'';
+  if(u.photo_url){
+    var p=String(u.photo_url).replace(/["<>]/g,'');
+    $('#avatar').innerHTML='<img alt="" src="'+p+'">';
+    $('#navav').innerHTML='<span class="mini"><img alt="" src="'+p+'"></span>';
+  }else{$('#avatar').textContent=L;$('#navav').innerHTML='<span class="mini">'+L+'</span>'}
+}
+})();
+</script>
 </body>
 </html>
